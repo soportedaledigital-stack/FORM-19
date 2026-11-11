@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: captura-alcoholimetro-form19
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
