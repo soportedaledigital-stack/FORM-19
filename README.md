@@ -13,12 +13,12 @@ Aplicación web para **GitHub + Render**, accesible desde celular y computador (
 5. En **Environment**, configure `APP_PASSWORD=admin` (ya preconfigurada para pruebas; cámbiela antes de uso real) y `SECRET_KEY` con una cadena aleatoria larga (si utiliza Blueprint con `render.yaml`, `SECRET_KEY` se puede generar automáticamente; `APP_PASSWORD` se solicitará).
 6. Configure **Health Check Path** `/health` si aparece en el formulario; es opcional para funcionar.
 7. Cree el servicio y abra la dirección `https://<nombre-de-servicio>.onrender.com` que Render le asigne.
-8. En el celular: abra esa URL, inicie sesión, cargue el `.xlsm`, active cámara o tome fotografía, revise el valor y guárdelo en la celda correspondiente.
+8. En el celular: abra esa URL, inicie sesión, cargue el `.xlsm`, active la cámara y marque «Captura y guardado automáticos». Enfoque el número dentro del recuadro verde; la lectura se registrará y avanzará a la siguiente celda libre automáticamente.
 9. Descargue el XLSM después de la sesión y abra el archivo en Excel para comprobar los resultados y macros.
 
 ## Consideraciones metrológicas y de seguridad
 
-- Reconocimiento óptico **no es infalible**: el operador **confirma cada lectura** antes de escribirla. Rechace imágenes ambiguas.
+- Reconocimiento óptico **no es infalible**: el modo manual permite confirmar cada lectura, pero el modo automático escribe sin confirmación. **Revise los resultados antes de emitir un certificado** y valide el sistema para uso metrológico. Rechace imágenes ambiguas.
 - Las celdas con lecturas preexistentes no se sobrescriben salvo autorización explícita.
 - Datos subidos quedan **temporalmente en el servidor** (ficheros en el almacenamiento efímero de Render) y se eliminan al reiniciar el servicio. Descargue el Excel y el CSV antes de terminar. Sin almacenamiento durable no es un registro electrónico permanente.
 - El servicio requiere contraseña, pero **no tiene control de usuarios por rol ni bitácora inmutable**; se recomienda un repositorio privado y no usar información sensible de clientes hasta evaluar confidencialidad, seguridad, backup y acceso.
@@ -30,3 +30,11 @@ Aplicación web para **GitHub + Render**, accesible desde celular y computador (
 ## Acceso inicial
 
 La contraseña de prueba es **admin**. Está configurada como valor predeterminado en `app.py` y en `render.yaml`. Si ya existe una variable `APP_PASSWORD` en un servicio de Render anterior, cambie allí el valor a `admin`, ya que las variables del servicio tienen prioridad. Esta contraseña es débil y no debe utilizarse en producción con datos sensibles.
+
+## Funcionamiento del nuevo modo automático
+
+- El reconocimiento se repite continuamente mientras el modo esté activado y haya cámara y Excel cargados. La velocidad depende de la red y del OCR del servidor (no es captura garantizada en tiempo real).
+- Reconoce **cualquier valor de 0 a 3 g/L** con hasta cuatro decimales, no busca el valor nominal 0,30. Ajuste el recuadro central verde para aislar el número y evitar otros números de la pantalla.
+- Guarda la primera lectura reconocida de manera no ambigua en la siguiente celda vacía E40:K42. Si el valor permanece idéntico, bloquea nuevas capturas hasta que cambie, desaparezca en dos revisiones, o se pulse «Nueva medición». Esto evita llenar siete celdas con una lectura estática.
+- Las celdas ya ocupadas nunca se reemplazan automáticamente. Antes de confiar en este modo en un laboratorio, compruebe con un conjunto de valores de prueba y compare contra lectura visual.
+- La aplicación **no puede detectar por sí sola cuándo el alcoholímetro inició un nuevo ensayo si el resultado sigue mostrando exactamente el mismo número**; use «Nueva medición» en ese caso.

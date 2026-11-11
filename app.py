@@ -123,8 +123,8 @@ def patch_cell(original, addr, value):
 
 
 def parse_value(s):
-    if not isinstance(s,str) or not re.fullmatch(r'\s*\d{1,2}[.,]\d{2,4}\s*',s):
-        raise ValueError('Formato inválido. Ejemplo: 0,300 g/L.')
+    if not isinstance(s,str) or not re.fullmatch(r'\s*\d{1,2}(?:[.,]\d{1,4})?\s*',s):
+        raise ValueError('Formato inválido. Ejemplos: 0,300; 0,45; 1,2 g/L.')
     x=float(s.strip().replace(',','.'))
     if not 0 <= x <= 3: raise ValueError('Valor fuera de 0 a 3 g/L.')
     return x
@@ -195,26 +195,36 @@ def ocr():
     up=request.files.get('image')
     if not up: return jsonify(error='Falta la fotografía.'),400
     try:
+        fast = request.form.get('fast') == '1'
         img=Image.open(BytesIO(up.read(8*1024*1024)))
         img=ImageOps.exif_transpose(img).convert('RGB')
-        img.thumbnail((1800,1800))
-        gray=ImageOps.grayscale(img)
+        img.thumbnail((1100 if fast else 1800, 1100 if fast else 1800))
+        gray=ImageOps.autocontrast(ImageOps.grayscale(img))
         texts=[]
-        for variant in (ImageOps.autocontrast(gray), ImageOps.invert(ImageOps.autocontrast(gray))):
-            enhanced=ImageEnhance.Contrast(variant.resize((variant.width*2,variant.height*2))).enhance(2)
-            for mode in (7,6):
-                texts.append(pytesseract.image_to_string(enhanced,config=f'--psm {mode} -c tessedit_char_whitelist=0123456789.,'))
+        if fast:
+            # En modo continuo el navegador envía solo el área de los dígitos.
+            for psm in (7, 13):
+                texts.append(pytesseract.image_to_string(gray,config=f'--psm {psm} -c tessedit_char_whitelist=0123456789.,'))
+        else:
+            for variant in (gray, ImageOps.invert(gray)):
+                enhanced=ImageEnhance.Contrast(variant.resize((variant.width*2,variant.height*2))).enhance(2)
+                for mode in (7,6):
+                    texts.append(pytesseract.image_to_string(enhanced,config=f'--psm {mode} -c tessedit_char_whitelist=0123456789.,'))
         candidates=[]
         for t in texts:
-            for val in re.findall(r'(?<!\d)\d{1,2}[.,]\d{2,4}(?!\d)',t):
+            # Acepta cualquier lectura numérica entre 0 y 3 g/L, sin comparar con el MRC.
+            for val in re.findall(r'(?<!\d)\d{1,2}(?:[.,]\d{1,4})?(?!\d)',t):
                 try: candidates.append(parse_value(val))
                 except ValueError: pass
-        if not candidates: return jsonify(detected=None,candidates=[],warning='No se reconoció un valor. Puede escribirlo manualmente.')
+        if not candidates: return jsonify(detected=None,candidates=[],warning='No se detectó una lectura numérica.')
         counts={v:candidates.count(v) for v in set(candidates)}
         ordered=sorted(counts,key=lambda v:(-counts[v],v))
         display=lambda v:f'{v:.3f}'.replace('.',',')
-        return jsonify(detected=display(ordered[0]),candidates=[display(v) for v in ordered],
-                       warning='Valores diferentes detectados; revise la imagen.' if len(ordered)>1 else '')
+        # Para evitar capturas erróneas, no autoguardar lecturas ambiguas.
+        ambiguous=len(ordered)>1
+        return jsonify(detected=None if fast and ambiguous else display(ordered[0]),
+                       candidates=[display(v) for v in ordered],
+                       warning='Lectura ambigua; enfoque solo los dígitos.' if ambiguous else '')
     except Exception as e: return jsonify(error='Error procesando imagen: '+str(e)[:150]),400
 
 if __name__ == '__main__':
