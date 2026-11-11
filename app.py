@@ -17,7 +17,8 @@ app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config.update(MAX_CONTENT_LENGTH=18*1024*1024, SESSION_COOKIE_HTTPONLY=True,
                   SESSION_COOKIE_SECURE=os.environ.get('RENDER','') == 'true',
                   SESSION_COOKIE_SAMESITE='Lax')
-BASE = Path(tempfile.gettempdir()) / 'daledigital_form19'
+TEMPLATE = Path(__file__).resolve().parent / 'data' / 'FORM19_PLANTILLA.xlsm'
+BASE = Path(tempfile.gettempdir()) / 'daledigital_form19_v4'
 BASE.mkdir(exist_ok=True)
 GUARD = threading.RLock()
 READINGS = tuple(f'{col}{row}' for row in (40,41,42) for col in 'EFGHIJK')
@@ -44,6 +45,7 @@ def login():
     session.clear()
     session['authenticated'] = True
     session['sid'] = secrets.token_hex(16)
+    ensure_workbook()
     return jsonify(ok=True)
 
 @app.post('/api/logout')
@@ -63,6 +65,17 @@ def storage():
         raise ValueError('Inicie sesión nuevamente.')
     return BASE / (sid + '.xlsm'), BASE / (sid + '.csv')
 
+
+
+def ensure_workbook():
+    """Load a fresh private working copy from the bundled base for each login session."""
+    p, log = storage()
+    if not p.exists():
+        with GUARD:
+            if not p.exists():
+                p.write_bytes(TEMPLATE.read_bytes())
+                log.unlink(missing_ok=True)
+    return p, log
 
 def worksheet_path(z):
     book = etree.fromstring(z.read('xl/workbook.xml'))
@@ -129,27 +142,11 @@ def parse_value(s):
     if not 0 <= x <= 3: raise ValueError('Valor fuera de 0 a 3 g/L.')
     return x
 
-@app.post('/api/upload')
-def upload():
-    file=request.files.get('file')
-    if not file or not file.filename.lower().endswith('.xlsm'):
-        return jsonify(error='Seleccione un Excel .xlsm.'),400
-    try:
-        data=file.read(16*1024*1024+1)
-        is_valid_book(data)
-        with GUARD:
-            p,log=storage()
-            p.write_bytes(data)
-            log.unlink(missing_ok=True)
-        return jsonify(ok=True, values=get_values(data), message='Plantilla recibida. Las demás celdas no se modificarán.')
-    except (ValueError, BadZipFile,KeyError,etree.XMLSyntaxError) as e:
-        return jsonify(error=str(e)),400
-
 @app.get('/api/status')
 def status():
     try:
-        p,_=storage()
-        return jsonify(uploaded=p.exists(), values=get_values(p.read_bytes()) if p.exists() else {})
+        p,_=ensure_workbook()
+        return jsonify(uploaded=True, values=get_values(p.read_bytes()), template='FORM19 base incorporado')
     except Exception: return jsonify(uploaded=False,values={})
 
 @app.post('/api/save')
@@ -160,8 +157,7 @@ def save():
         if addr not in READINGS: raise ValueError('Solo se permite escribir E40:K42.')
         value=parse_value(d.get('value'))
         with GUARD:
-            p,log=storage()
-            if not p.exists(): raise ValueError('Primero cargue un archivo FORM19 .xlsm.')
+            p,log=ensure_workbook()
             data=p.read_bytes()
             previous=get_values(data)[addr]
             if previous is not None and not bool(d.get('replace')):
@@ -178,15 +174,22 @@ def save():
         return jsonify(ok=True,cell=addr,value=f'{value:.3f}'.replace('.',','),previous=previous)
     except ValueError as e: return jsonify(error=str(e)),400
 
+@app.post('/api/reset')
+def reset_workbook():
+    with GUARD:
+        p,log=storage()
+        p.write_bytes(TEMPLATE.read_bytes())
+        log.unlink(missing_ok=True)
+    return jsonify(ok=True, values=get_values(p.read_bytes()))
+
 @app.get('/api/download')
 def download():
-    p,_=storage()
-    if not p.exists(): return jsonify(error='No hay un archivo cargado.'),400
+    p,_=ensure_workbook()
     return send_file(BytesIO(p.read_bytes()),as_attachment=True,download_name='FORM19_LECTURAS_CAPTURADAS.xlsm',mimetype='application/vnd.ms-excel.sheet.macroEnabled.12')
 
 @app.get('/api/audit')
 def download_audit():
-    _,p=storage()
+    _,p=ensure_workbook()
     if not p.exists(): return jsonify(error='Todavía no hay registros.'),400
     return send_file(BytesIO(p.read_bytes()),as_attachment=True,download_name='FORM19_TRAZABILIDAD.csv',mimetype='text/csv')
 
