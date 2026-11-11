@@ -190,42 +190,78 @@ def download_audit():
     if not p.exists(): return jsonify(error='Todavía no hay registros.'),400
     return send_file(BytesIO(p.read_bytes()),as_attachment=True,download_name='FORM19_TRAZABILIDAD.csv',mimetype='text/csv')
 
+def recognize_display(image: Image.Image, fast: bool):
+    """OCR on several display-oriented variants, without assuming a nominal reference value.
+
+    Return only decimal-shaped readouts. Reject lone digits and long numbers from labels
+    and instrument serial numbers (which previously could win the majority vote).
+    """
+    gray = ImageOps.autocontrast(ImageOps.grayscale(image))
+    w, h = gray.size
+    # Upsample small cellphone/video crops to make narrow decimal points visible.
+    factor = min(3.0, max(1.0, 1050 / max(w, 1)))
+    if factor > 1.01:
+        gray = gray.resize((round(w * factor), round(h * factor)), Image.Resampling.LANCZOS)
+    gray = ImageEnhance.Contrast(gray).enhance(1.65)
+    variants = [('grayscale', gray)]
+    variants.append(('bright', ImageOps.autocontrast(ImageEnhance.Brightness(gray).enhance(1.35))))
+    variants.append(('inverted', ImageOps.invert(gray)))
+    for threshold in (110, 160):
+        variants.append((f'threshold-{threshold}', gray.point(lambda x, t=threshold: 255 if x > t else 0)))
+    # Alternate PSMs help on LCD/7-segment screens; psm 6 can find digits
+    # alongside units when a still photo is used.
+    modes = (7, 13, 8) if fast else (7, 13, 8, 6)
+    observations = []
+    raw_texts = []
+    for name, variant in variants:
+        for psm in modes:
+            txt = pytesseract.image_to_string(
+                variant,
+                config=(f'--oem 3 --psm {psm} '
+                        '-c tessedit_char_whitelist=0123456789.,OoIl|S ')
+            ).strip()
+            if txt:
+                raw_texts.append(txt[:90])
+            # Keep digit groups, repair common OCR errors on 7-segment LCDs.
+            normalized = txt.replace('O','0').replace('o','0').replace('I','1').replace('l','1').replace('|','1').replace('S','5')
+            normalized = re.sub(r'(?<=\d)\s*[.,]\s*(?=\d)', '.', normalized)
+            for m in re.finditer(r'(?<![\d.,])([0-3])[.,](\d{1,4})(?![\d.,])', normalized):
+                token = m.group(0)
+                try:
+                    value = parse_value(token)
+                except ValueError:
+                    continue
+                # Repetition across variants is useful but isn't proof of correctness.
+                observations.append((round(value, 4), name, psm))
+    if not observations:
+        return None, [], raw_texts[:4], 'No se detectaron dígitos con separador decimal. Acerque la cámara y ajuste el recuadro.'
+    count = {}
+    for value, name, mode in observations:
+        count[value] = count.get(value, 0) + 1
+    ordered = sorted(count, key=lambda x: (-count[x], x))
+    winner = ordered[0]
+    # Do not silently choose between similarly supported conflicting readouts.
+    runner_up = count.get(ordered[1], 0) if len(ordered) > 1 else 0
+    confident = count[winner] >= 2 and count[winner] >= runner_up + 2
+    fmt = lambda n: f'{n:.3f}'.replace('.', ',') if round(n, 4) == round(n, 3) else f'{n:.4f}'.replace('.', ',')
+    warning = '' if confident else 'Lectura poco clara o diferente entre filtros. Ajuste encuadre e iluminación.'
+    return fmt(winner) if confident else None, [fmt(v) for v in ordered[:5]], raw_texts[:4], warning
+
+
 @app.post('/api/ocr')
 def ocr():
-    up=request.files.get('image')
-    if not up: return jsonify(error='Falta la fotografía.'),400
+    up = request.files.get('image')
+    if not up:
+        return jsonify(error='Falta la fotografía.'), 400
     try:
         fast = request.form.get('fast') == '1'
-        img=Image.open(BytesIO(up.read(8*1024*1024)))
-        img=ImageOps.exif_transpose(img).convert('RGB')
-        img.thumbnail((1100 if fast else 1800, 1100 if fast else 1800))
-        gray=ImageOps.autocontrast(ImageOps.grayscale(img))
-        texts=[]
-        if fast:
-            # En modo continuo el navegador envía solo el área de los dígitos.
-            for psm in (7, 13):
-                texts.append(pytesseract.image_to_string(gray,config=f'--psm {psm} -c tessedit_char_whitelist=0123456789.,'))
-        else:
-            for variant in (gray, ImageOps.invert(gray)):
-                enhanced=ImageEnhance.Contrast(variant.resize((variant.width*2,variant.height*2))).enhance(2)
-                for mode in (7,6):
-                    texts.append(pytesseract.image_to_string(enhanced,config=f'--psm {mode} -c tessedit_char_whitelist=0123456789.,'))
-        candidates=[]
-        for t in texts:
-            # Acepta cualquier lectura numérica entre 0 y 3 g/L, sin comparar con el MRC.
-            for val in re.findall(r'(?<!\d)\d{1,2}(?:[.,]\d{1,4})?(?!\d)',t):
-                try: candidates.append(parse_value(val))
-                except ValueError: pass
-        if not candidates: return jsonify(detected=None,candidates=[],warning='No se detectó una lectura numérica.')
-        counts={v:candidates.count(v) for v in set(candidates)}
-        ordered=sorted(counts,key=lambda v:(-counts[v],v))
-        display=lambda v:f'{v:.3f}'.replace('.',',')
-        # Para evitar capturas erróneas, no autoguardar lecturas ambiguas.
-        ambiguous=len(ordered)>1
-        return jsonify(detected=None if fast and ambiguous else display(ordered[0]),
-                       candidates=[display(v) for v in ordered],
-                       warning='Lectura ambigua; enfoque solo los dígitos.' if ambiguous else '')
-    except Exception as e: return jsonify(error='Error procesando imagen: '+str(e)[:150]),400
+        img = Image.open(BytesIO(up.read(8*1024*1024)))
+        img = ImageOps.exif_transpose(img).convert('RGB')
+        img.thumbnail((1300 if fast else 1800, 1300 if fast else 1800))
+        detected, candidates, raw, warning = recognize_display(img, fast)
+        return jsonify(detected=detected, candidates=candidates, raw=raw, warning=warning)
+    except Exception as e:
+        return jsonify(error='Error procesando imagen: ' + str(e)[:150]), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT','10000')))
