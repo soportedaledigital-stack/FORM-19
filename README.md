@@ -10,7 +10,7 @@ Aplicación web para **GitHub + Render**, accesible desde celular y computador (
 2. Suba los archivos del ZIP directamente en la raíz del repositorio (`app.py`, `Dockerfile`, `requirements.txt`, `render.yaml`, carpeta `templates`). **No suba** su FORM19.xlsm.
 3. Entre en https://dashboard.render.com/ > **New** > **Web Service**.
 4. Conecte su cuenta GitHub y seleccione el repositorio. Elija **Language/Runtime: Docker**, plan según disponibilidad y región.
-5. En **Environment**, configure `APP_PASSWORD` con una contraseña fuerte y `SECRET_KEY` con una cadena aleatoria larga (si utiliza Blueprint con `render.yaml`, `SECRET_KEY` se puede generar automáticamente; `APP_PASSWORD` se solicitará).
+5. En **Environment**, configure `APP_PASSWORD=admin` (ya preconfigurada para pruebas; cámbiela antes de uso real) y `SECRET_KEY` con una cadena aleatoria larga (si utiliza Blueprint con `render.yaml`, `SECRET_KEY` se puede generar automáticamente; `APP_PASSWORD` se solicitará).
 6. Configure **Health Check Path** `/health` si aparece en el formulario; es opcional para funcionar.
 7. Cree el servicio y abra la dirección `https://<nombre-de-servicio>.onrender.com` que Render le asigne.
 8. En el celular: abra esa URL, inicie sesión, cargue el `.xlsm`, active cámara o tome fotografía, revise el valor y guárdelo en la celda correspondiente.
@@ -26,3 +26,7 @@ Aplicación web para **GitHub + Render**, accesible desde celular y computador (
 - No instala OCR en los dispositivos de los operadores: Docker instala Tesseract en Render.
 - La plantilla no se incluye en el proyecto para no publicar datos reales.
 - Validar funcionamiento, fórmulas y macros sobre un archivo de pruebas antes de implementación metrológica (ISO/IEC 17025, gestión de datos y registros).
+
+## Acceso inicial
+
+La contraseña de prueba es **admin**. Está configurada como valor predeterminado en `app.py` y en `render.yaml`. Si ya existe una variable `APP_PASSWORD` en un servicio de Render anterior, cambie allí el valor a `admin`, ya que las variables del servicio tienen prioridad. Esta contraseña es débil y no debe utilizarse en producción con datos sensibles.

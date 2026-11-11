@@ -6,6 +6,6 @@ services:
     healthCheckPath: /health
     envVars:
       - key: APP_PASSWORD
-        sync: false
+        value: admin
       - key: SECRET_KEY
         generateValue: true

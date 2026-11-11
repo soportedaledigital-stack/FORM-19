@@ -26,7 +26,7 @@ REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 
 
 def authorized():
-    pwd = os.environ.get('APP_PASSWORD', '').strip()
+    pwd = os.environ.get('APP_PASSWORD', 'admin').strip()
     return bool(pwd) and session.get('authenticated') is True
 
 @app.route('/health')
@@ -37,7 +37,7 @@ def home(): return render_template('index.html', logged=authorized())
 
 @app.post('/api/login')
 def login():
-    pwd = os.environ.get('APP_PASSWORD','').strip()
+    pwd = os.environ.get('APP_PASSWORD','admin').strip()
     candidate = str((request.get_json(silent=True) or {}).get('password',''))
     if not pwd or not hmac.compare_digest(candidate,pwd):
         return jsonify(error='Contraseña incorrecta o APP_PASSWORD sin configurar.'), 401
