@@ -1,0 +1,39 @@
+FORM19 CORREGIDO V5 — 13/11/2026
+
+IMPORTANTE: Antes de actualizar, descargue los registros previos que aún estén disponibles.
+
+1. Descomprima este ZIP.
+2. Abra el repositorio GitHub que usa su aplicación de Render.
+3. Sustituya los archivos del proyecto por TODO el contenido de esta carpeta.
+   No suba el ZIP como un único archivo y no anide otra carpeta de proyecto.
+4. Deben quedar en la raíz:
+   Dockerfile
+   app.py
+   form19_core.py
+   requirements.txt
+   render.yaml
+   templates/index.html
+   static/app.js
+   static/app.css
+   static/capture-state.js
+   data/FORM19_PLANTILLA.xlsm
+5. Guarde los cambios.
+6. En Render: Manual Deploy > Deploy latest commit.
+7. Conserve APP_PASSWORD y SECRET_KEY existentes.
+8. Abra la página HTTPS y compruebe que la cabecera diga V5 · 2026-11-13.
+9. Ingrese y pruebe primero Descargar FORM19 (.xlsm).
+10. Pulse Iniciar captura automática y permita la cámara.
+
+QUÉ DEBE SUCEDER
+- Dos imágenes concordantes permiten guardar la lectura automáticamente.
+- Se muestra la celda utilizada, la lectura y la foto correspondiente.
+- El botón Descargar FORM19 entrega el XLSM actualizado.
+- El botón Descargar Excel + fotos + historial entrega las evidencias juntas.
+
+El recuadro debe incluir los dígitos y su decimal, no otras etiquetas.
+No se insertan decimales supuestos ni se ajusta el resultado al nominal.
+La plantilla conserva información anterior fuera de E40:K42; revísela antes de emitir un certificado.
+Descargue siempre su trabajo: el almacenamiento del servidor sigue siendo temporal.
+
+La versión se probó con una cámara y API simuladas y con una imagen OCR sintética.
+Falta comprobar el despliegue en su cuenta Render y el reconocimiento con su alcoholímetro real.

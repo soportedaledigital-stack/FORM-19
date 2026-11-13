@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DALEDIGITAL · FORM19 V5</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}?v=5">
+<script defer src="{{ url_for('static', filename='capture-state.js') }}?v=5"></script>
+<script defer src="{{ url_for('static', filename='app.js') }}?v=5"></script>
+</head>
+<body data-logged="{{ 'true' if logged else 'false' }}">
+<header><div class="eyebrow">DALEDIGITAL DISPOSITIVOS</div><h1>FORM19 · Captura automática</h1><p>Lecturas del alcoholímetro, fotografía de respaldo y Excel actualizado.</p><span class="version">{{ version }}</span></header>
+<section id="auth" class="panel" {% if logged %}hidden{% endif %}>
+<h2>Acceso al registro</h2><label for="password">Contraseña</label><input id="password" type="password" autocomplete="current-password"><button id="login">Ingresar</button><p id="loginMsg" class="message" role="status">Ingrese con la contraseña configurada para esta aplicación.</p>
+</section>
+<main id="workspace" {% if not logged %}hidden{% endif %}>
+<section class="panel statusbar"><strong id="sessionInfo">Comprobando plantilla FORM19…</strong><span id="progress" class="badge">0 / 21 lecturas</span></section>
+<div class="layout">
+<section class="panel"><h2>1. Captura automática</h2>
+<div class="camera-wrap"><video id="video" playsinline autoplay muted aria-label="Cámara del alcoholímetro"></video><div id="roi" class="roi" hidden></div><div id="cameraPlaceholder">La cámara se abrirá al iniciar la captura.</div></div>
+<div class="actions"><button id="start" disabled>Iniciar captura automática</button><button id="stop" class="secondary" disabled>Detener</button></div>
+<label for="row">Grupo de referencia</label><select id="row"><option value="40">0,2982 g/L — fila 40</option><option value="41">0,7915 g/L — fila 41</option><option value="42">1,4878 g/L — fila 42</option></select>
+<p class="hint">Completa de izquierda a derecha y continúa a la siguiente fila. El rango permitido es de 0 a 3 g/L; no se fuerza la lectura al valor nominal.</p>
+<details open><summary>Ajustar el recuadro de los dígitos</summary>
+<div class="slider-grid"><div><label for="region">Ancho: <span id="regionLabel">65%</span></label><input id="region" type="range" min="20" max="100" value="65"></div><div><label for="height">Alto: <span id="heightLabel">28%</span></label><input id="height" type="range" min="8" max="80" value="28"></div><div><label for="horizontal">Centro horizontal: <span id="horizontalLabel">50%</span></label><input id="horizontal" type="range" min="10" max="90" value="50"></div><div><label for="vertical">Centro vertical: <span id="verticalLabel">50%</span></label><input id="vertical" type="range" min="10" max="90" value="50"></div></div>
+<p class="hint">Incluya solo el número y su separador decimal. Evite reflejos, otras cifras y las etiquetas del equipo.</p></details>
+<div id="ocrMsg" class="message" role="status" aria-live="polite">Cámara detenida.</div>
+<details><summary>Detalle del reconocimiento</summary><div id="ocrDetail" class="hint">Todavía no se han analizado imágenes.</div></details>
+<p class="hint">Una lectura se guarda después de dos imágenes concordantes. Para registrar dos mediciones idénticas consecutivas, retire el display del recuadro hasta que se indique que está listo para otra medición.</p>
+</section>
+<section class="panel"><h2>2. Lecturas y descarga</h2><div class="next-line">Próxima celda <strong id="target">—</strong></div><div class="last-line">Última lectura <span id="last">—</span></div><div id="saveMsg" class="message" role="status">Comprobando el archivo de trabajo…</div>
+<div class="scroll" id="cells"></div>
+<p class="hint">Solo se escriben E40:K42 de «REGISTRO DE DATOS». No se reemplazan celdas ocupadas. Se conserva la plantilla original con sus macros.</p>
+<div class="downloads"><a id="downloadExcel" class="download" href="/api/download" download>Descargar FORM19 (.xlsm)</a><a id="downloadEvidence" class="download secondary" href="/api/evidence" download>Descargar Excel + fotos + historial</a><a id="downloadAudit" class="download secondary" href="/api/audit" download>Descargar historial (.csv)</a></div>
+<div id="downloadMsg" class="message" hidden role="status"></div>
+<figure id="photoPanel" hidden><figcaption id="photoCaption">Última foto guardada</figcaption><img id="lastPhoto" alt="Recorte del display correspondiente a la última lectura guardada"><p class="hint">La foto se guarda por separado; no cambia el diseño del FORM19.</p></figure>
+<div class="actions bottom"><button id="reset" class="secondary">Empezar nueva serie</button><button id="logout" class="secondary">Salir</button></div><p class="hint warning-note">Descargue su trabajo antes de salir, reiniciar la serie o actualizar el servicio. El almacenamiento de esta aplicación es temporal.</p>
+</section>
+</div></main>
+</body></html>

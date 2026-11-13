@@ -6,6 +6,8 @@ services:
     healthCheckPath: /health
     envVars:
       - key: APP_PASSWORD
-        value: admin
+        sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: OMP_THREAD_LIMIT
+        value: "1"

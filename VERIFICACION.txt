@@ -1,0 +1,72 @@
+VERIFICACIÓN DEL PROYECTO FORM19 V5
+Fecha: 2026-11-13
+Origen: FORM-19-main.zip entregado por el usuario.
+
+1. REVISIÓN Y SINTAXIS
+- Código Python: compilación de app.py y form19_core.py correcta.
+- Código JavaScript: node --check correcto.
+- Dockerfile: incluye data, static, templates y ambos módulos Python.
+- Plantilla original conservada byte por byte, sin cambios en el archivo incluido.
+
+2. PRUEBAS UNITARIAS DEL NÚCLEO: 9 / 9 CORRECTAS
+- Existencia de las 21 celdas de destino y ausencia de lecturas anteriores en ellas.
+- Escritura secuencial de las 21 celdas E40:K42.
+- Identidad de todos los miembros del ZIP XLSM salvo el XML de la hoja modificada.
+- Identidad de los demás nodos de la hoja, excluidas las 21 celdas editables.
+- Identidad del binario de macros VBA.
+- Validación de valores y rechazo de celdas no autorizadas.
+- Rechazo de resultados sin separador decimal o contradictorios.
+- Conservación de cuatro decimales cuando corresponde.
+- Rechazo de una imagen inválida.
+
+3. ESTADO DE CAPTURA JAVASCRIPT: 8 / 8 CORRECTAS
+- Exige dos lecturas consecutivas.
+- Admite el valor cero.
+- No duplica una pantalla sostenida.
+- Considera 0,3 y 0,3000 como el mismo valor.
+- Un OCR ambiguo no rearma la misma pantalla.
+- Tres imágenes sin texto permiten repetir el mismo valor.
+- Un valor diferente necesita su propia confirmación.
+- Reiniciar borra el estado de la serie.
+
+4. RECONOCIMIENTO OCR REAL, UNA IMAGEN SINTÉTICA
+- Imagen generada para prueba: texto negro «0.300» sobre fondo blanco.
+- Una invocación de Tesseract sobre una composición de tres variantes.
+- Resultado: 0,300; tres líneas concordantes.
+- No es una prueba con un display real ni una caracterización de exactitud.
+
+5. PRUEBA DE INTERFAZ EN CHROMIUM
+Cámara y API simuladas; código real de la interfaz.
+- Inicio de sesión y carga del estado.
+- Captura automática después de dos fotogramas concordantes.
+- Avance de E40 a F40 y protección frente a duplicados.
+- Vista previa de la fotografía.
+- Coincidencia geométrica del recuadro con el recorte del video.
+- Descarga del XLSM mediante el navegador; valor E40 = 0,3000.
+- Proyecto VBA idéntico al de la plantilla.
+- Error de descarga mostrado al simular una plantilla ausente.
+- Diseño móvil a 390 píxeles sin desbordamiento horizontal de página.
+- Reinicio de la serie sin lecturas ni foto anterior.
+- Sin errores JavaScript durante esas pruebas.
+
+6. LÓGICA DE LAS RUTAS DEL SERVIDOR
+Ejecutada directamente con un adaptador de prueba, sin el transporte HTTP de Flask.
+- Preparación de plantilla y sesión de trabajo.
+- Vinculación de token, valor y fotografía antes de guardar.
+- Guardado real del XLSM, historial y foto en un directorio temporal.
+- Reintento idempotente de un guardado.
+- Obtención de bytes para Excel, foto y ZIP de evidencias.
+- Rechazo de sobrescritura y de un valor distinto al de la foto.
+- Reinicio e invalidación de una serie anterior.
+- Archivo temporal ausente: error explícito, sin crear una copia vacía.
+- Plantilla ausente: error antes de confirmar la autenticación.
+
+7. NO COMPROBADO EN ESTE ENTORNO
+- No se desplegó en la cuenta Render del usuario.
+- No se construyó/ejecutó la imagen Docker.
+- No se ejecutó Flask real con su transporte HTTP y cookies: Flask no estaba disponible en el entorno de revisión.
+- No se probó la cámara física del usuario, permisos de su teléfono ni el display real del alcoholímetro.
+- No se abrió el archivo con Microsoft Excel ni se ejecutaron sus macros; se comprobó su preservación binaria y estructura.
+- No se realizó una validación metrológica del OCR ni de los cálculos del certificado.
+
+Estas pruebas son de funcionamiento del software, no una autorización de uso metrológico ni una evidencia de validación del método del laboratorio.
